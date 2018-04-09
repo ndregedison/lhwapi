@@ -57,7 +57,7 @@ def create():
         # Check that email does not already exist (not a great query, but works)
         station = db.session.query(Station).filter(Station.jobUrl == url)
         if not station.count():
-            job_id = hashlib.md5(url).hexdigest()
+            job_id = hashlib.md5(url.encode('utf-8')).hexdigest()
 
             with app.app_context():
                 thr = Thread(target=scrape, args=[app,db,url])
