@@ -182,9 +182,9 @@ def scrape(app, db, url):
                     img_ext = img_url.split(".")[-1]
                     img_url = img_url.replace(".{}".format(img_ext), "_790x490.{}".format(img_ext))
                     filename = img_url.split("/")[-1]
-                    print (img_url)
+                    # print (img_url)
                     img_resp = get_response(img_url)
-                    print (img_resp)
+                    # print (img_resp)
                     img_size, img_mime_type, real_size_x, real_size_y = get_image_properties(img_resp)
                     img_border_color = get_border_color_of_image(img_resp.content)
                     img_average_color = get_average_color_of_image(img_resp.content)
@@ -672,5 +672,5 @@ def save_image(cx, cy, cw, ch, rw, rh, rq, fn, content):
     im.save(fn)
 
 if __name__ == '__main__':
-    app.debug = True
+    app.debug = False
     app.run()
