@@ -47,3 +47,6 @@ urllib3==1.22
 virtualenv==15.2.0
 virtualenv-clone==0.3.0
 Werkzeug==0.14.1
+
+[requires]
+python_full_version = "2.7.14"

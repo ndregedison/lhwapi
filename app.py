@@ -22,7 +22,8 @@ from countrycodes import country_codes
 # sys.setdefaultencoding("utf-8")
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:root@localhost/lhwApi')
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:root@localhost/lhwApi')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:root@localhost/lhwApi'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -404,6 +405,7 @@ def scrape(app, db, url):
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
         station.jobProcess = 95
         db.session.commit()
+
         sys.stdout.write("\rProcess: 95%")
         sys.stdout.flush()
         detailImage = {
