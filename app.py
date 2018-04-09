@@ -118,7 +118,7 @@ def scrape(app, db, url):
         }
 
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.process = 5
+        station.jobProcess = 5
         db.session.commit()
         sys.stdout.write("\rProcess: 5%")
         sys.stdout.flush()
@@ -156,7 +156,7 @@ def scrape(app, db, url):
         hotelGalleryJson = json.loads(re.search("var galleryJson = (.*?)\;", response.text, re.S|re.M|re.I).group(1).strip())
 
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.process = 10
+        station.jobProcess = 10
         db.session.commit()
 
         sys.stdout.write("\rProcess: 5%")
@@ -246,7 +246,7 @@ def scrape(app, db, url):
             variants.append(variant_entity)
             
             station = db.session.query(Station).filter(Station.jobUrl == url).first()
-            station.process = int(10 + 60 / variants_count * iii)
+            station.jobProcess = int(10 + 60 / variants_count * iii)
             db.session.commit()
 
             sys.stdout.write("\rProcess: {}%".format(int(10 + 60 / variants_count * iii)))
@@ -269,7 +269,7 @@ def scrape(app, db, url):
         images = []
 
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.process = 70
+        station.jobProcess = 70
         db.session.commit()
 
         sys.stdout.write("\rProcess: 70%")
@@ -339,13 +339,13 @@ def scrape(app, db, url):
             })
 
             station = db.session.query(Station).filter(Station.jobUrl == url).first()
-            station.process = 70 + int(20.0/gallary_count) * iii
+            station.jobProcess = 70 + int(20.0/gallary_count) * iii
             db.session.commit()
             sys.stdout.write("\rProcess: {}%".format(int(70 + 20 * iii / variants_count)))
             sys.stdout.flush()
 
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.process = 90
+        station.jobProcess = 90
         db.session.commit()
 
         sys.stdout.write("\rProcess: 90%")
@@ -402,7 +402,7 @@ def scrape(app, db, url):
         # save_image(original_prop["crop"]["x"], original_prop["crop"]["y"], original_prop["crop"]["width"],original_prop["crop"]["height"],original_prop["width"],original_prop["height"],70, original_url, img_resp.content)
         # images.append(orginal_prop)
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.process = 95
+        station.jobProcess = 95
         db.session.commit()
         sys.stdout.write("\rProcess: 95%")
         sys.stdout.flush()
@@ -481,7 +481,7 @@ def scrape(app, db, url):
 
 
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.process = 98
+        station.jobProcess = 98
         db.session.commit()
 
         sys.stdout.write("\rProcess: 98%")
@@ -523,7 +523,7 @@ def scrape(app, db, url):
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
         station.jobStatus = 1
         station.jobResult = json.dumps(product_entity)
-        station.process = 100
+        station.jobProcess = 100
         db.session.commit()
         
         sys.stdout.write("\rProcess: 100%")
@@ -534,7 +534,7 @@ def scrape(app, db, url):
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
         station.jobStatus = -1
         station.jobResult = ""
-        station.process = 0
+        station.jobProcess = 0
         db.session.commit()
         
     # with open("product.json", "w") as f:
