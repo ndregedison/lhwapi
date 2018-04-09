@@ -9,8 +9,9 @@ import sys
 import time
 from io import BytesIO
 from threading import Thread
-
+import backoff
 import requests
+
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from lxml import html
@@ -18,14 +19,18 @@ from PIL import Image
 
 from countrycodes import country_codes
 
-# reload(sys)
-# sys.setdefaultencoding("utf-8")
+
+reload(sys)
+sys.setdefaultencoding("utf-8")
+
 
 app = Flask(__name__)
 # app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:root@localhost/lhwApi')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:root@localhost/lhwApi'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+
 
 # Create our database model
 class Station(db.Model):
@@ -74,8 +79,9 @@ def create():
             status = station.first().jobStatus
             if status == 0:
                 return jsonify({"status": "exist", "id": job_id, "is_exist": 1, "job_status": status})
+            elif status == 1:
+                return jsonify({"status": "exist", "id": job_id, "is_exist": 1, "job_status": status})
             elif status == -1:
-                job_id = station.first().jobId
                 with app.app_context():
                     thr = Thread(target=scrape, args=[app, db, url])
                     thr.daemon = True
@@ -117,31 +123,20 @@ def scrape(app, db, url):
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
         }
-
-        station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.jobProcess = 5
-        db.session.commit()
+        
         sys.stdout.write("\rProcess: 5%")
         sys.stdout.flush()
 
         response = requests.get(url, headers=headers)
-
         tree = html.fromstring(response.text)
         prop_id = ''.join([random.choice(string.ascii_letters + string.digits) for n in range(10)])
         address = tree.xpath("//div[@class='contactinfo']/p[1]/text()")[0]
-        # correct_address = geocoder.google(address)
-        # print (correct_address.address)
 
         name = tree.xpath("//div[@class='hotelheader']/h1/span/text()")[0].split(",")[-2].strip()
-        # name = correct_address.city # city
-        # print (name)
 
         country = get_country_code(address) # country
         title = tree.xpath("//div[@class='hotelheader']/h1/text()")[0].strip() # title
 
-        # images = tree.xpath("//div[@class='hotelheader']/h1/text()")[0]
-        # print (images)
-        
         services = []
 
         latitude = re.search("mapLat=(.*?)\&", response.text, re.S|re.M|re.I).group(1).strip()      # Latitude
@@ -155,12 +150,8 @@ def scrape(app, db, url):
 
         hotelGalleryJsonId = re.search("var hotelGalleryJson = galleryJson\[\"(.*?)\"\]\;", response.text, re.S|re.M|re.I).group(1).strip()
         hotelGalleryJson = json.loads(re.search("var galleryJson = (.*?)\;", response.text, re.S|re.M|re.I).group(1).strip())
-
-        station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.jobProcess = 10
-        db.session.commit()
-
-        sys.stdout.write("\rProcess: 5%")
+        
+        sys.stdout.write("\rProcess: 10%")
         sys.stdout.flush()
 
         variants_count  = len(tree.xpath('//div[@class="roomitem"]'))
@@ -168,74 +159,87 @@ def scrape(app, db, url):
         for variant in tree.xpath('//div[@class="roomitem"]'):
             iii += 1
             variant_title = variant.xpath('p/text()')[0].strip()
-            variant_size = re.search("(\d+[\s]?|\d+[\s]?\-\d+[\s]?)sq[\s]?f", variant.xpath('img[contains(@class, "roompic")]/@alt')[0].lower(), re.S | re.M).group(1).strip()
+            try:
+                variant_size = re.search("(\d+[\s]?|\d+[\s]?\-\d+[\s]?)sq[\s]?f", variant.xpath('img[contains(@class, "roompic")]/@alt')[0].lower(), re.S | re.M).group(1).strip()
+            except:
+                try:
+                    variant_size = re.search("(\d+[\s]?|\d+[\s]?\-\d+[\s]?)sq[\s]?f", variant_title.lower(), re.S | re.M).group(1).strip()
+                except:
+                    variant_size = ""
             variant_desc = variant_title
-            variant_img_id = re.search("(\w+\-\w+\-\w+\-\w+\-\w+)", variant.xpath('.//a[@class="gallerylaunch"]/@onclick')[0], re.S | re.M).group(1)
+            try:
+                variant_img_id = re.search("(\w+\-\w+\-\w+\-\w+\-\w+)", variant.xpath('.//a[@class="gallerylaunch"]/@onclick')[0], re.S | re.M).group(1)
+            except:
+                variant_img_id = ""
             variant_url = "https://www.lhw.com/hotel/" + variant.xpath('.//a[@class="btn btn-2"]/@href')[0].split(",")[0]
-            resp = requests.get(variant_url, headers=headers)
+            resp = get_response(variant_url, headers=headers)
             tree_room = html.fromstring(resp.text)
             long_desc = tree_room.xpath('//div[@id="selected-room"]//span[@class="feat"]/text()')[0].strip()
             images = []
-            
-            for img_name in hotelGalleryJson[variant_img_id]:
-                img_url = "https:" + img_name["Url"]
-                img_ext = img_url.split(".")[-1]
-                img_url = img_url.replace(".{}".format(img_ext), "_790x490.{}".format(img_ext))
-                filename = img_url.split("/")[-1]
-                img_resp = get_response(img_url)
-                img_size, img_mime_type, real_size_x, real_size_y = get_image_properties(img_resp)
-                img_border_color = get_border_color_of_image(img_resp.content)
-                img_average_color = get_average_color_of_image(img_resp.content)
-                
-                md5_string = hashlib.md5(("{};{}".format("thumb", filename)).encode('utf-8')).hexdigest()
-                thumb_url = md5_string + "_" + filename
+            try:
+                for img_name in hotelGalleryJson[variant_img_id]:
+                    img_url = "https:" + img_name["Url"]
+                    img_ext = img_url.split(".")[-1]
+                    img_url = img_url.replace(".{}".format(img_ext), "_790x490.{}".format(img_ext))
+                    filename = img_url.split("/")[-1]
+                    print (img_url)
+                    img_resp = get_response(img_url)
+                    print (img_resp)
+                    img_size, img_mime_type, real_size_x, real_size_y = get_image_properties(img_resp)
+                    img_border_color = get_border_color_of_image(img_resp.content)
+                    img_average_color = get_average_color_of_image(img_resp.content)
+                    
+                    md5_string = hashlib.md5(("{};{}".format("thumb", filename)).encode('utf-8')).hexdigest()
+                    thumb_url = md5_string + "_" + filename
 
-                thumb_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "thumb", img_size, img_border_color, img_average_color)
-                # save_image(thumb_prop["crop"]["x"], thumb_prop["crop"]["y"], thumb_prop["crop"]["width"],thumb_prop["crop"]["height"],thumb_prop["width"],thumb_prop["height"],70, thumb_url, img_resp.content)
-                # images.append(thumb_prop)
+                    thumb_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "thumb", img_size, img_border_color, img_average_color)
+                    # save_image(thumb_prop["crop"]["x"], thumb_prop["crop"]["y"], thumb_prop["crop"]["width"],thumb_prop["crop"]["height"],thumb_prop["width"],thumb_prop["height"],70, thumb_url, img_resp.content)
+                    # images.append(thumb_prop)
 
-                md5_string = hashlib.md5(("{};{}".format("px1", filename)).encode('utf-8')).hexdigest()
-                px1_url = md5_string + "_" + filename
-                
-                px1_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "px1", img_size, img_border_color, img_average_color)
-                # save_image(thumb_prop["crop"]["x"], px1_prop["crop"]["y"], px1_prop["crop"]["width"],px1_prop["crop"]["height"],px1_prop["width"],px1_prop["height"],70, px1_url, img_resp.content)
-                # images.append(px1_prop)
-                
-                md5_string = hashlib.md5(("{};{}".format("px3", filename)).encode('utf-8')).hexdigest()
-                px3_url = md5_string + "_" + filename
+                    md5_string = hashlib.md5(("{};{}".format("px1", filename)).encode('utf-8')).hexdigest()
+                    px1_url = md5_string + "_" + filename
+                    
+                    px1_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "px1", img_size, img_border_color, img_average_color)
+                    # save_image(thumb_prop["crop"]["x"], px1_prop["crop"]["y"], px1_prop["crop"]["width"],px1_prop["crop"]["height"],px1_prop["width"],px1_prop["height"],70, px1_url, img_resp.content)
+                    # images.append(px1_prop)
+                    
+                    md5_string = hashlib.md5(("{};{}".format("px3", filename)).encode('utf-8')).hexdigest()
+                    px3_url = md5_string + "_" + filename
 
-                px3_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "px3", img_size, img_border_color, img_average_color)
-                # save_image(px3_prop["crop"]["x"], px3_prop["crop"]["y"], px3_prop["crop"]["width"],px3_prop["crop"]["height"],px3_prop["width"],px3_prop["height"],70, px3_url, img_resp.content)
-                # images.append(px3_prop)
-                
-                md5_string = hashlib.md5(("{};{}".format("dx1_2", filename)).encode('utf-8')).hexdigest()
-                dx1_2_url = md5_string + "_" + filename
+                    px3_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "px3", img_size, img_border_color, img_average_color)
+                    # save_image(px3_prop["crop"]["x"], px3_prop["crop"]["y"], px3_prop["crop"]["width"],px3_prop["crop"]["height"],px3_prop["width"],px3_prop["height"],70, px3_url, img_resp.content)
+                    # images.append(px3_prop)
+                    
+                    md5_string = hashlib.md5(("{};{}".format("dx1_2", filename)).encode('utf-8')).hexdigest()
+                    dx1_2_url = md5_string + "_" + filename
 
-                dx1_2_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "dx1_2", img_size, img_border_color, img_average_color)
-                # save_image(dx1_2_prop["crop"]["x"], dx1_2_prop["crop"]["y"], dx1_2_prop["crop"]["width"],dx1_2_prop["crop"]["height"],dx1_2_prop["width"],dx1_2_prop["height"],70, dx1_2_url, img_resp.content)
-                # images.append(dx1_2_prop)
+                    dx1_2_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "dx1_2", img_size, img_border_color, img_average_color)
+                    # save_image(dx1_2_prop["crop"]["x"], dx1_2_prop["crop"]["y"], dx1_2_prop["crop"]["width"],dx1_2_prop["crop"]["height"],dx1_2_prop["width"],dx1_2_prop["height"],70, dx1_2_url, img_resp.content)
+                    # images.append(dx1_2_prop)
 
-                md5_string = hashlib.md5(("{};{}".format("original", filename)).encode('utf-8')).hexdigest()
-                original_url = md5_string + "_" + filename
+                    md5_string = hashlib.md5(("{};{}".format("original", filename)).encode('utf-8')).hexdigest()
+                    original_url = md5_string + "_" + filename
 
-                original_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "original", img_size, img_border_color, img_average_color)
-                # save_image(original_prop["crop"]["x"], original_prop["crop"]["y"], original_prop["crop"]["width"],original_prop["crop"]["height"],original_prop["width"],original_prop["height"],70, original_url, img_resp.content)
-                # images.append(orginal_prop)
-                
-                images.append({
-                    "propId"        : prop_id,              # identifier of related product
-                    "thumbUrl": thumb_url.replace("_", "-"),
-                    "thumbProp"     : thumb_prop,           # Image variant properties
-                    "px1Url": px1_url.replace("_", "-"),
-                    "px1Prop"       : px1_prop,             # Image variant properties
-                    "px3Url": px3_url.replace("_", "-"),
-                    "px3Prop"       : px3_prop,             # Image variant properties
-                    "dx1_2Url": dx1_2_url.replace("_", "-"),
-                    "dx1_2Prop"     : dx1_2_prop,           # Image variant properties
-                    "originalUrl": original_url,
-                    "originalProp"  : original_prop,        # Image variant properties
-                    "type"          : "VariantHotel.images" # Image type (please refer to which value should be specified to parent entity)
-                })
+                    original_prop = convert_img_structure(filename, real_size_x, real_size_y, "VariantHotel.images", img_mime_type, "original", img_size, img_border_color, img_average_color)
+                    # save_image(original_prop["crop"]["x"], original_prop["crop"]["y"], original_prop["crop"]["width"],original_prop["crop"]["height"],original_prop["width"],original_prop["height"],70, original_url, img_resp.content)
+                    # images.append(orginal_prop)
+                    
+                    images.append({
+                        "propId"        : prop_id,              # identifier of related product
+                        "thumbUrl": thumb_url.replace("_", "-"),
+                        "thumbProp"     : thumb_prop,           # Image variant properties
+                        "px1Url": px1_url.replace("_", "-"),
+                        "px1Prop"       : px1_prop,             # Image variant properties
+                        "px3Url": px3_url.replace("_", "-"),
+                        "px3Prop"       : px3_prop,             # Image variant properties
+                        "dx1_2Url": dx1_2_url.replace("_", "-"),
+                        "dx1_2Prop"     : dx1_2_prop,           # Image variant properties
+                        "originalUrl": original_url,
+                        "originalProp"  : original_prop,        # Image variant properties
+                        "type"          : "VariantHotel.images" # Image type (please refer to which value should be specified to parent entity)
+                    })
+            except:
+                pass
             variant_entity = {
                 "propId" : prop_id,         # identifier of related product
                 "title" : variant_title,    # Room title
@@ -245,12 +249,8 @@ def scrape(app, db, url):
                 "images" : images,              # List of room interior images up to 25 images (related image type should be "VariantHotel.images")
             }
             variants.append(variant_entity)
-            
-            station = db.session.query(Station).filter(Station.jobUrl == url).first()
-            station.jobProcess = int(10 + 60 / variants_count * iii)
-            db.session.commit()
 
-            sys.stdout.write("\rProcess: {}%".format(int(10 + 60 / variants_count * iii)))
+            sys.stdout.write("\rProcess: {}%".format(int(10 + 40 / variants_count * iii)))
             sys.stdout.flush()
 
         svc = {
@@ -269,11 +269,7 @@ def scrape(app, db, url):
         cards = []
         images = []
 
-        station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.jobProcess = 70
-        db.session.commit()
-
-        sys.stdout.write("\rProcess: 70%")
+        sys.stdout.write("\rProcess: 50%")
         sys.stdout.flush()
 
         gallary_count = len(hotelGalleryJson[hotelGalleryJsonId])
@@ -339,15 +335,8 @@ def scrape(app, db, url):
                 "type"          : "Card.images"         # Image type (please refer to which value should be specified to parent entity)
             })
 
-            station = db.session.query(Station).filter(Station.jobUrl == url).first()
-            station.jobProcess = 70 + int(20.0/gallary_count) * iii
-            db.session.commit()
-            sys.stdout.write("\rProcess: {}%".format(int(70 + 20 * iii / variants_count)))
+            sys.stdout.write("\rProcess: {}%".format(int(50 + 40 * iii / gallary_count)))
             sys.stdout.flush()
-
-        station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.jobProcess = 90
-        db.session.commit()
 
         sys.stdout.write("\rProcess: 90%")
         sys.stdout.flush()
@@ -402,12 +391,10 @@ def scrape(app, db, url):
         original_prop = convert_img_structure(filename, real_size_x, real_size_y, "Card.detailImage", img_mime_type, "original", img_size, img_border_color, img_average_color)
         # save_image(original_prop["crop"]["x"], original_prop["crop"]["y"], original_prop["crop"]["width"],original_prop["crop"]["height"],original_prop["width"],original_prop["height"],70, original_url, img_resp.content)
         # images.append(orginal_prop)
-        station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.jobProcess = 95
-        db.session.commit()
 
         sys.stdout.write("\rProcess: 95%")
         sys.stdout.flush()
+
         detailImage = {
             "propId"        : prop_id,              # identifier of related product
             "thumbUrl": thumb_url.replace("_", "-"),
@@ -482,10 +469,6 @@ def scrape(app, db, url):
             })
 
 
-        station = db.session.query(Station).filter(Station.jobUrl == url).first()
-        station.jobProcess = 98
-        db.session.commit()
-
         sys.stdout.write("\rProcess: 98%")
         sys.stdout.flush()
 
@@ -522,17 +505,18 @@ def scrape(app, db, url):
         
         job_id = hashlib.md5(url).hexdigest()
         jobUrl = url
+
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
         station.jobStatus = 1
         station.jobResult = json.dumps(product_entity)
-        station.jobProcess = 100
         db.session.commit()
         
         sys.stdout.write("\rProcess: 100%")
         sys.stdout.write("Done!")
         sys.stdout.flush()
 
-    except:
+    except Exception as e:
+        print (e)
         station = db.session.query(Station).filter(Station.jobUrl == url).first()
         station.jobStatus = -1
         station.jobResult = ""
@@ -574,11 +558,17 @@ def get_image_properties(response):
     size = im.size
     return response.headers["Content-Length"], response.headers["Content-Type"], size[0], size[1]
 
-def get_response(img_url):
-    try:
+
+@backoff.on_exception(backoff.constant, requests.exceptions.RequestException, max_tries=5, interval=10)
+def get_response(img_url, headers=None):
+    if headers is not None:
+        response = requests.get(img_url, headers=headers)
+    else:
         response = requests.get(img_url)
-    except: 
-        response = None
+    # try:
+    # except Exception as e:
+    #     print (e)
+    #     response = None
     return response
 
 def get_image_rect(width, height, ratio_des):
