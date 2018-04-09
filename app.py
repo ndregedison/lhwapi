@@ -18,8 +18,8 @@ from PIL import Image
 
 from countrycodes import country_codes
 
-reload(sys)
-sys.setdefaultencoding("utf-8")
+# reload(sys)
+# sys.setdefaultencoding("utf-8")
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:root@localhost/lhwApi')
