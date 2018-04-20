@@ -436,7 +436,6 @@ def run_lhwapi(app, db, job):
             "tag": "ul",
             "value": "\n".join(ul_tags)
         })
-        print ("11")
         overview_card = {
             "propId": prop_id,         # identifier of related product
             "subject": "ABOUT HOTEL",  # Raw value
