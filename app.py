@@ -200,6 +200,10 @@ def result(job_id):
         except:
             create_time = None
         try:
+            start_time = station.first().start_time
+        except:
+            start_time = None
+        try:
             finish_time = station.first().finish_time
         except:
             finish_time = None
@@ -209,15 +213,15 @@ def result(job_id):
             status = None
 
         if status == None:
-            return jsonify({"message": "no exist", "id": job_id, "status": status, "result": None, "create_time": create_time, "finish_time": finish_time})
+            return jsonify({"message": "no exist", "id": job_id, "status": status, "result": None, "create_time": create_time, "start_time": start_time, "finish_time": finish_time})
         elif status == 1:
-            return jsonify({"message": "pending", "id": job_id, "status": status, "result": None, "create_time": create_time, "finish_time": finish_time})
+            return jsonify({"message": "pending", "id": job_id, "status": status, "result": None, "create_time": create_time, "start_time": start_time, "finish_time": finish_time})
         elif status == 2:
-            return jsonify({"message": "running", "id": job_id, "status": status, "result": None, "create_time": create_time, "finish_time": finish_time})
+            return jsonify({"message": "running", "id": job_id, "status": status, "result": None, "create_time": create_time, "start_time": start_time, "finish_time": finish_time})
         elif status == 3:
-            return jsonify({"message": "finished", "id": job_id, "status": status, "result": json.loads(result), "create_time": create_time, "finish_time": finish_time})
+            return jsonify({"message": "finished", "id": job_id, "status": status, "result": json.loads(result), "create_time": create_time, "start_time": start_time, "finish_time": finish_time})
         elif status == 0:
-            return jsonify({"message": "stopped", "id": job_id, "status": status, "result": None, "create_time": create_time, "finish_time": finish_time})
+            return jsonify({"message": "stopped", "id": job_id, "status": status, "result": None, "create_time": create_time, "start_time": start_time, "finish_time": finish_time})
 
 #####################################################################
 #####################################################################
