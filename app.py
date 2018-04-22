@@ -16,7 +16,6 @@ from threading import Thread
 from urlparse import urlparse
 
 import backoff
-import boto3
 import requests
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
@@ -108,6 +107,8 @@ class Job(object):
     def get_type(self, url):
         if "lhw.com" in self.get_domain(url):
             return run_lhwapi
+        elif "slh.com" in self.get_domain(url):
+            return run_slhapi
         else:
             return None
 
@@ -242,6 +243,243 @@ def get_response(url, headers=None):
 
 #####################################################################
 #####################################################################
+
+def run_slhapi(app, db, job):
+    return
+    # try:
+    #     results = {}
+    #     job.start_time = datetime.utcnow()
+    #     job.status = 2
+    #     job.update_job()
+    #     headers = get_header()
+    #     # send the requests to url
+    #     response = get_response(job.url, headers=headers)
+    #     tree = html.fromstring(response.content)
+    #     # prop_id
+    #     prop_id = ''.join(
+    #         [random.choice(string.ascii_letters + string.digits) for n in range(10)])
+    #     # address
+    #     address = ''.join([s.strip() for s in tree.xpath("//p[@class='location']//text()")])
+    #     # name | city
+    #     name = address.split(",")[0]
+    #     # country
+    #     country = get_country_code(address)
+    #     # title
+    #     title = tree.xpath('//h1[@itemprop="name"]/text()')[0].strip()
+    #     # geo location
+    #     latitude = tree.xpath('//div[@id="map-canvas"]/@data-lat')[0]
+    #     longitude = tree.xpath('//div[@id="map-canvas"]/@data-lon')[0]
+    #     geo_point = {
+    #         "latitude": float(latitude),
+    #         "longitude": float(longitude)
+    #     }
+    #     # product detailImage:
+
+    #     # hotelGalleryJsonId = re.search(
+    #     #     "var hotelGalleryJson = galleryJson\[\"(.*?)\"\]\;", response.text, re.S | re.M | re.I).group(1).strip()
+    #     # hotelGalleryJson = json.loads(re.search(
+    #     #     "var galleryJson = (.*?)\;", response.text, re.S | re.M | re.I).group(1).strip())
+    #     productDetailImage = "https://www.slh.com" + \
+    #         tree.xpath(
+    #             '//div[@class="hero-image grid-overhang"]/img/@src')[0].strip()
+    #     overviewDeatailImage = "https://www.slh.com" + \
+    #         tree.xpath(
+    #             '//div[@class="hero-image grid-overhang"]/img/@src')[0].strip()
+    #     print (productDetailImage)
+    #     print (overviewDeatailImage)
+    #     services = []  # service:Array<Service> // List of related services
+    #     iii = 0
+    #     variants = []
+    #     for variant in tree.xpath('//ul[@class="clear carousel-list"]/li'):
+    #         if iii == 0:
+    #             iii += 1
+    #             continue
+            
+    #         iii += 1
+                
+    #         variant_title = variant.xpath('.//h5/text()')[0].strip()
+    #         print (variant_title)
+    #         try:
+    #             variant_size = re.search("Room size: (\d+) square", 
+    #                 ''.join(tree.xpath('.//div[@class="detail-copy"]//text()')), re.S | re.M).group(1).strip()
+    #         except:
+    #             variant_size = ""
+    #         print (variant_size)
+    #         variant_desc = variant_title
+    #         print (variant_desc)
+    #         # try:
+    #         #     variant_img_id = re.search("(\w+\-\w+\-\w+\-\w+\-\w+)", variant.xpath(
+    #         #         './/a[@class="gallerylaunch"]/@onclick')[0], re.S | re.M).group(1)
+    #         # except:
+    #         #     variant_img_id = ""
+    #         variant_url = variant.xpath('.//div[@class="image-holder"]/img/@src')[0]
+    #         print (variant_url)
+    #         resp = get_response(variant_url, headers=headers)
+    #         tree_room = html.fromstring(resp.text)
+    #         long_desc = tree_room.xpath(
+    #             '//div[@id="selected-room"]//span[@class="feat"]/text()')[0].strip()
+    #         images = []
+    #         try:
+    #             for img_name in hotelGalleryJson[variant_img_id]:
+    #                 img_url = "https:" + img_name["Url"]
+    #                 img_ext = img_url.split(".")[-1]
+    #                 img_url = img_url.replace(".{}".format(
+    #                     img_ext), "_790x490.{}".format(img_ext))
+
+    #                 images.append(get_image_property(
+    #                     img_url, prop_id, "VariantHotel.images"))
+    #         except:
+    #             pass
+
+    #         variant_entity = {
+    #             "propId": prop_id,         # identifier of related product
+    #             "title": variant_title,    # Room title
+    #             # List of room amenities merged in one string with "\n" as delimiter, up to 25 items
+    #             "desc": variant_desc,
+    #             # Room description up to 1000 symbols breaked by paragraph, line or paragraph break should be replaced with "\n"
+    #             "longDesc": long_desc,
+    #             # Room size including measure or measures and coverage if this is possible
+    #             "variantSize": variant_size + " Sqft",
+    #             # List of room interior images up to 25 images (related image type should be "VariantHotel.images")
+    #             "images": images,
+    #         }
+    #         variants.append(variant_entity)
+
+    #     svc = {
+    #         "propId": prop_id,          # identifier of related product
+    #         "title": title,             # Hotel name
+    #         "type": 1,                  # Raw value
+    #         "variant": variants,        # List of related rooms
+    #         "address": address,         # Hotel full address
+    #         "loc": geo_point,           # Hotel location
+    #         "city": name,               # City name of hotel location
+    #         # Country of hotel location according to ISO 3166-1 (alpha-2 country code) in lower case
+    #         "country": country
+    #     }
+
+    #     services.append(svc)
+    #     cards = []     # card:Array<Card>       // List of related cards
+    #     images = []
+
+    #     gallary_count = len(hotelGalleryJson[hotelGalleryJsonId])
+    #     iii = 0
+    #     for img_name in hotelGalleryJson[hotelGalleryJsonId]:
+    #         iii += 1
+    #         img_url = "https:" + img_name["Url"]
+    #         img_ext = img_url.split(".")[-1]
+    #         img_url = img_url.replace(".{}".format(
+    #             img_ext), "_720x450.{}".format(img_ext))
+
+    #         images.append(get_image_property(img_url, prop_id, "Card.images"))
+    #     map_card = {}  # Map card entity
+    #     overview_card = {}  # Overview card entity
+    #     room_selection_card = {}  # Room selection card entity
+    #     slider_card = {
+    #         "propId": prop_id,         # identifier of related product
+    #         "subject": name,           # City name of hotel location
+    #         "title": address,          # Hotel name
+    #         "logicType": 4,            # Raw value
+    #         # List of hotel images excluding room interior images up to 50 images (related image type should be "Card.images")
+    #         "images": images,
+    #         "type": 4                  # Raw value
+    #     }
+    #     img_url = "https://api.mapbox.com/styles/v1/sixtravel/cj46j8tu40c4m2rp9js45y80x/static/{},{},7/1250x1250?access_token=pk.eyJ1Ijoic2l4dHJhdmVsIiwiYSI6ImNqNDZqNXRhdzJiOG0ycm9iOGJmcHBmbWsifQ.ybkyZTQl4kInpOEabItxmA&attribution=false&logo=false".format(
+    #         longitude, latitude)
+    #     detailImage = get_image_property(img_url, prop_id, "Card.detailImage")
+    #     map_card = {
+    #         "propId": prop_id,         # identifier of related product
+    #         "subject": title,          # Hotel name
+    #         "title": address,          # Hotel full address
+    #         "logicType": 2,            # Raw value
+    #         # Map screenshot (please see how to make map screenshot below) (related image type should be "c")
+    #         "detailImage": detailImage,
+    #         "loc": geo_point,                          # Hotel location
+    #         "type": 5                  # Raw value
+    #     }
+    #     description_entity = [
+    #         {
+    #             "tag": "blockquote",
+    #             "value": tree.xpath('//p[@class="shortintro"]/text()')[0].strip()
+    #         },
+    #         {
+    #             "tag": "p",
+    #             "value": tree.xpath('//div[@class="mainintro"]/div/text()')[0].strip()
+    #         }
+    #     ]
+    #     ul_tags = []
+    #     try:
+    #         ul_tags.append(tree.xpath(
+    #             '//li[contains(text(),"Total Rooms:")]/text()')[0])
+    #     except Exception as e:
+    #         pass
+    #     try:
+    #         ul_tags.append(tree.xpath(
+    #             '//li[contains(text(),"Total Suites:")]/text()')[0])
+    #     except:
+    #         pass
+    #     try:
+    #         ul_tags.append(tree.xpath(
+    #             '//li[contains(text(),"Total Villas:")]/text()')[0])
+    #     except:
+    #         pass
+    #     try:
+    #         ul_tags += tree.xpath('//p[@class="airport"]/text()')[
+    #             0].strip().split(";")
+    #     except:
+    #         pass
+
+    #     description_entity.append({
+    #         "tag": "ul",
+    #         "value": "\n".join(ul_tags)
+    #     })
+    #     overview_card = {
+    #         "propId": prop_id,         # identifier of related product
+    #         "subject": "ABOUT HOTEL",  # Raw value
+    #         "title": "Overview",       # Raw value
+    #         "logicType": 1,            # Raw value
+    #         # Hotel outer exterior image (related image type should be "Card.detailImage")
+    #         "detailImage": get_image_property(overviewDeatailImage, prop_id, "Card.detailImage"),
+    #         "attributedDescription": description_entity,
+    #         "type": 1                  # Raw value
+    #     }
+    #     room_url = "{}/rooms".format(job.url)
+    #     room_resp = get_response(room_url, headers=headers)
+    #     room_content = html.fromstring(room_resp.text)
+    #     img_url = "https:" + re.search("background-image\:url\((.*?)\)\;", room_content.xpath(
+    #         '//div[@class="bigimageheader"]/@style')[0], re.S | re.M).group(1)
+    #     room_selection_card = {
+    #         "propId": prop_id,         # identifier of related product
+    #         "subject": "STAY",         # Raw value
+    #         "title": "Rooms & Rates",  # Raw value
+    #         "logicType": 3,            # Raw value
+    #         "actionType": 1,           # Raw value
+    #         # Hotel inner interior image or room interior image (related image type should be "Card.detailImage")
+    #         "detailImage": get_image_property(img_url, prop_id, "Card.detailImage"),
+    #         "type": 1                  # Raw value
+    #     }
+    #     card = [slider_card, map_card, overview_card, room_selection_card]
+
+    #     product_entity = {
+    #         # Random unique identifier matching the following regular expression /^[A-Za-z0-9]{10}$/, this is needed to locate all entities related to certain product
+    #         "propId": prop_id,
+    #         "name": name,         # City name of hotel location
+    #         "title": title,        # Hotel name
+    #         # Hotel outer exterior image (related image type should be "Product.detailImage")
+    #         "detailImage": get_image_property(productDetailImage, prop_id, "Product.detailImage"),
+    #         "service": services,      # List of related services
+    #         "card": card      # List of related cards
+    #     }
+    #     job.status = 3
+    #     job.result = json.dumps(product_entity)
+    #     job.finish_time = datetime.utcnow()
+    #     job.update_job()
+    # except Exception as e:
+    #     print (e)
+    #     job.finish_time = datetime.utcnow()
+    #     job.status = 0
+    #     job.result = None
+    #     job.update_job()
+
 
 def run_lhwapi(app, db, job):
     try:
@@ -493,7 +731,7 @@ def get_image_property(img_url, prop_id, tp):
         filename, real_size_x, real_size_y, tp, img_mime_type, "thumb", img_size, img_border_color, img_average_color)
 
     # upload_s3(thumb_prop["crop"]["x"], thumb_prop["crop"]["y"], thumb_prop["crop"]["width"], thumb_prop["crop"]
-           ["height"], thumb_prop["width"], thumb_prop["height"], 70, thumb_url, img_resp.content)
+        #    ["height"], thumb_prop["width"], thumb_prop["height"], 70, thumb_url, img_resp.content)
 
     md5_string = hashlib.md5(
         ("{};{}".format("px1", filename)).encode('utf-8')).hexdigest()
@@ -502,7 +740,7 @@ def get_image_property(img_url, prop_id, tp):
     px1_prop = convert_img_structure(
         filename, real_size_x, real_size_y, tp, img_mime_type, "px1", img_size, img_border_color, img_average_color)
     # upload_s3(px1_prop["crop"]["x"], px1_prop["crop"]["y"], px1_prop["crop"]["width"], px1_prop["crop"]
-              ["height"], px1_prop["width"], px1_prop["height"], 70, thumb_url, img_resp.content)
+            #   ["height"], px1_prop["width"], px1_prop["height"], 70, thumb_url, img_resp.content)
 
     md5_string = hashlib.md5(
         ("{};{}".format("px3", filename)).encode('utf-8')).hexdigest()
@@ -511,7 +749,7 @@ def get_image_property(img_url, prop_id, tp):
     px3_prop = convert_img_structure(
         filename, real_size_x, real_size_y, tp, img_mime_type, "px3", img_size, img_border_color, img_average_color)
     # upload_s3(px3_prop["crop"]["x"], px3_prop["crop"]["y"], px3_prop["crop"]["width"], px3_prop["crop"]
-              ["height"], px3_prop["width"], px3_prop["height"], 70, thumb_url, img_resp.content)
+            #   ["height"], px3_prop["width"], px3_prop["height"], 70, thumb_url, img_resp.content)
 
     md5_string = hashlib.md5(
         ("{};{}".format("dx1_2", filename)).encode('utf-8')).hexdigest()
@@ -520,7 +758,7 @@ def get_image_property(img_url, prop_id, tp):
     dx1_2_prop = convert_img_structure(
         filename, real_size_x, real_size_y, tp, img_mime_type, "dx1_2", img_size, img_border_color, img_average_color)
     # upload_s3(dx1_2_prop["crop"]["x"], dx1_2_prop["crop"]["y"], dx1_2_prop["crop"]["width"], dx1_2_prop["crop"]
-              ["height"], dx1_2_prop["width"], dx1_2_prop["height"], 70, thumb_url, img_resp.content)
+            #   ["height"], dx1_2_prop["width"], dx1_2_prop["height"], 70, thumb_url, img_resp.content)
 
     md5_string = hashlib.md5(
         ("{};{}".format("original", filename)).encode('utf-8')).hexdigest()
@@ -530,7 +768,7 @@ def get_image_property(img_url, prop_id, tp):
         filename, real_size_x, real_size_y, tp, img_mime_type, "original", img_size, img_border_color, img_average_color)
     
     # upload_s3(original_prop["crop"]["x"], original_prop["crop"]["y"], original_prop["crop"]["width"], original_prop["crop"]
-              ["height"], original_prop["width"], original_prop["height"], 70, thumb_url, img_resp.content)
+            #   ["height"], original_prop["width"], original_prop["height"], 70, thumb_url, img_resp.content)
 
     return {
         "propId": prop_id,              # identifier of related product
