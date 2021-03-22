@@ -27,7 +27,7 @@ itsdangerous==0.24
 Jinja2==2.9.6
 jmespath==0.9.3
 lml==0.0.1
-lxml==4.2.1
+lxml==4.6.3
 Mako==1.0.7
 MarkupSafe==1.0
 marshmallow==2.15.0
